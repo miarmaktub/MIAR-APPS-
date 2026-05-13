@@ -14,7 +14,7 @@ import {
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
 
-const GEMINI_API_KEY = 'AIzaSyA-TbFy_GFTWakJJ874jrA7rfhbzrZIHFk';
+const GEMINI_API_KEY = 'AIzaSyDlvEB0RiedCLXBkeXmRAFkOa6t9lEGG98';
 const GEMINI_ENDPOINT = 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions';
 const CHAT_STORAGE_KEY = '@miar_chat_history';
 const MEMORY_KEY = '@miar_apps_memory';
