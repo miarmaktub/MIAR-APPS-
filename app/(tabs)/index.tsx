@@ -14,7 +14,7 @@ import {
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
 
-const GEMINI_API_KEY = 'AIzaSyBPTVAdO-6pjGlRxILWuZ55OV_m3yYNWbM';
+const GEMINI_API_KEY = 'AIzaSyA-TbFy_GFTWakJJ874jrA7rfhbzrZIHFk';
 const GEMINI_ENDPOINT = 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions';
 const SYSTEM_PROMPT = 'Você é o MIAR, uma IA assistente que se auto-desenvolve. Ajude o usuário com qualquer tarefa.';
 const STORAGE_KEY = '@miar_chat_history';
