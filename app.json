@@ -14,6 +14,7 @@
     },
     "android": {
       "package": "com.miarapps.miarapp",
+      "softwareKeyboardLayoutMode": "pan",
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
@@ -49,7 +50,7 @@
     "extra": {
       "router": {},
       "eas": {
-        "projectId": "1f373064-5c53-478d-ac78-8192b269ad7b"
+        "projectId": "d4f74253-0d4e-4b48-af9b-bddf67f33d41"
       }
     }
   }
