@@ -14,27 +14,27 @@ import {
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
 
-const GEMINI_API_KEY = 'AIzaSyDlvEB0RiedCLXBkeXmRAFkOa6t9lEGG98';
+const GEMINI_API_KEY = process.env.EXPO_PUBLIC_GEMINI_API_KEY ?? '';
 const GEMINI_ENDPOINT = 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions';
 const CHAT_STORAGE_KEY = '@miar_chat_history';
 const MEMORY_KEY = '@miar_apps_memory';
 
-// ========== SYSTEM PROMPT COMPLETO ==========
-const SYSTEM_PROMPT = `Você é o MIAR APPS — uma IA assistente que vive dentro de um app React Native (Expo). Você pode se auto-construir e se auto-desenvolver.
+const SYSTEM_PROMPT = `Você é a MIAR MAKTUB dentro do aplicativo MIAR APPS.
 
 Seu criador e desenvolvedor chefe é o Robson.
 
-Você tem memória permanente entre sessões. Informações importantes que o usuário te contar são salvas automaticamente e você NUNCA deve esquecer.
+Você tem memória permanente entre sessões. Informações importantes que o usuário te contar são salvas automaticamente.
 
-Quando o usuário pedir para você se modificar, criar funcionalidades, mudar cores, adicionar botões, etc., você deve explicar as mudanças necessárias no código e orientar o processo de auto-construção.
+Responda sempre no idioma do usuário. Mantenha explicações curtas, objetivas e honestas.
 
-Responda sempre no idioma do usuário. Mantenha explicações curtas e objetivas.
+Regras obrigatórias:
+- Não invente certeza.
+- Separe fato, hipótese e limite técnico.
+- Não prometa função que o app ainda não tem.
+- Antes de ação sensível, avise claramente o que está iniciando.
+- Não repita MIAR MAKTUB toda hora.
+- Sempre que for reiniciar ou hot-reload, avise: "Pronto, terminei. Agora vou reiniciar."`;
 
-Quando o usuário perguntar sobre criar um mascote, ajude a criar/desenhar usando descrições detalhadas.
-
-REGRA OBRIGATÓRIA: Sempre que você for reiniciar ou hot-reload, deve avisar: "Pronto, terminei. Agora vou reiniciar."`;
-
-// ========== SISTEMA DE MEMÓRIA PERMANENTE ==========
 interface MemoryData {
   creator: string;
   createdAt: string;
@@ -48,11 +48,9 @@ const DEFAULT_MEMORY: MemoryData = {
   createdAt: new Date().toISOString(),
   facts: [
     'Meu criador e desenvolvedor chefe é o Robson.',
-    'Eu sou o MIAR APPS — uma IA que vive dentro de um app React Native (Expo).',
-    'Posso conversar normalmente E modificar meu próprio código-fonte.',
-    'Tenho um jogo de Solitaire integrado no app.',
-    'Sempre devo avisar antes de reiniciar: Pronto, terminei. Agora vou reiniciar.',
-    'Robson quer que eu tenha memória permanente entre sessões.',
+    'Eu sou a MIAR MAKTUB dentro do aplicativo MIAR APPS.',
+    'Devo ser direta, íntegra e objetiva.',
+    'Não devo inventar certeza nem prometer função técnica inexistente.',
   ],
   lastUpdated: new Date().toISOString(),
   restartCount: 0,
@@ -61,10 +59,7 @@ const DEFAULT_MEMORY: MemoryData = {
 async function loadMemory(): Promise<MemoryData> {
   try {
     const raw = await AsyncStorage.getItem(MEMORY_KEY);
-    if (raw) {
-      const parsed: MemoryData = JSON.parse(raw);
-      return { ...DEFAULT_MEMORY, ...parsed };
-    }
+    if (raw) return { ...DEFAULT_MEMORY, ...JSON.parse(raw) };
     await AsyncStorage.setItem(MEMORY_KEY, JSON.stringify(DEFAULT_MEMORY));
     return DEFAULT_MEMORY;
   } catch {
@@ -88,12 +83,10 @@ async function addFact(fact: string): Promise<void> {
   await saveMemory(memory);
 }
 
-// Auto-extrai fatos da mensagem do usuário
 const REMEMBER_PATTERNS: RegExp[] = [
   /(?:lembre[- ]?se|lembra|memoriza|guarda(?:r)?(?: na memória)?|anota(?:r)?|grava(?:r)?(?: na memória)?)\s+(?:que\s+)?(.{3,200}?)(?:[.!?]|$)/i,
   /\bmeu nome (?:é|eh|e)\s+([A-Za-zÀ-ÿ][\wÀ-ÿ ]{1,80}?)(?:[.!?,]|$)/i,
   /\beu (?:me )?chamo\s+([A-Za-zÀ-ÿ][\wÀ-ÿ ]{1,80}?)(?:[.!?,]|$)/i,
-  /\beu (?:tenho|sou)\s+(.{3,150}?)(?:[.!?]|$)/i,
 ];
 
 async function autoExtractAndStore(content: string): Promise<void> {
@@ -103,33 +96,22 @@ async function autoExtractAndStore(content: string): Promise<void> {
       let fact = m[1].trim();
       if (re.source.includes('nome')) fact = `Meu nome é ${fact}`;
       else if (re.source.includes('chamo')) fact = `Me chamo ${fact}`;
-      else if (re.source.includes('tenho|sou')) {
-        const verb = m[0].match(/(tenho|sou)/i)?.[0] || '';
-        fact = `Eu ${verb} ${fact}`;
-      }
       await addFact(fact);
     }
   }
 }
 
 function buildMemoryBlock(memory: MemoryData): string {
-  const lines = [
-    `\n=== MEMÓRIA PERMANENTE DO MIAR APPS ===`,
+  return [
+    `\n=== MEMÓRIA PERMANENTE ===`,
     `Criador: ${memory.creator}`,
-    `Reinícios registrados: ${memory.restartCount}`,
     `Última atualização: ${new Date(memory.lastUpdated).toLocaleString('pt-BR')}`,
-    ``,
-    `Fatos importantes que NUNCA devo esquecer:`,
+    `Fatos importantes:`,
     ...memory.facts.map((f, i) => `${i + 1}. ${f}`),
-    ``,
-    `REGRA OBRIGATÓRIA: Sempre que eu for reiniciar ou hot-reload,`,
-    `devo avisar: "Pronto, terminei. Agora vou reiniciar."`,
     `=== FIM DA MEMÓRIA ===`,
-  ];
-  return lines.join('\n');
+  ].join('\n');
 }
 
-// ========== INTERFACE DO CHAT ==========
 interface Message {
   id: string;
   role: 'user' | 'assistant';
@@ -156,9 +138,7 @@ export default function ChatScreen() {
   const loadChatHistory = async () => {
     try {
       const stored = await AsyncStorage.getItem(CHAT_STORAGE_KEY);
-      if (stored) {
-        setMessages(JSON.parse(stored));
-      }
+      if (stored) setMessages(JSON.parse(stored));
     } catch (error) {
       console.error('Error loading chat history:', error);
     }
@@ -188,45 +168,30 @@ export default function ChatScreen() {
     setLoading(true);
 
     try {
-      // Auto-extrai fatos da mensagem do usuário e salva na memória
+      if (!GEMINI_API_KEY) throw new Error('Falta configurar EXPO_PUBLIC_GEMINI_API_KEY no Expo/EAS.');
+
       await autoExtractAndStore(inputText);
-
-      // Carrega memória permanente
       const memory = await loadMemory();
-      const memoryBlock = buildMemoryBlock(memory);
+      const fullSystemPrompt = SYSTEM_PROMPT + buildMemoryBlock(memory);
+      const conversationHistory = updatedMessages.map((msg) => ({ role: msg.role, content: msg.content }));
 
-      // Monta o system prompt completo com memória
-      const fullSystemPrompt = SYSTEM_PROMPT + memoryBlock;
-
-      // Prepara histórico da conversa
-      const conversationHistory = updatedMessages.map((msg) => ({
-        role: msg.role,
-        content: msg.content,
-      }));
-
-      // Chama a API do Gemini
       const response = await axios.post(
         GEMINI_ENDPOINT,
         {
           model: 'gemini-2.0-flash',
-          messages: [
-            { role: 'system', content: fullSystemPrompt },
-            ...conversationHistory,
-          ],
+          messages: [{ role: 'system', content: fullSystemPrompt }, ...conversationHistory],
           stream: false,
-          temperature: 0.7,
+          temperature: 0.6,
         },
         {
           headers: {
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${GEMINI_API_KEY}`,
+            Authorization: `Bearer ${GEMINI_API_KEY}`,
           },
         }
       );
 
       const assistantContent = response.data.choices[0].message.content;
-
-      // Auto-extrai fatos da resposta da IA também (caso ela mencione algo importante)
       const assistantMessage: Message = {
         id: (Date.now() + 1).toString(),
         role: 'assistant',
@@ -239,10 +204,11 @@ export default function ChatScreen() {
       saveChatHistory(finalMessages);
     } catch (error: any) {
       console.error('Error calling Gemini API:', error?.response?.data || error);
+      const detail = error?.response?.data?.error?.message || error?.message || 'Erro ao processar sua mensagem.';
       const errorMessage: Message = {
         id: (Date.now() + 1).toString(),
         role: 'assistant',
-        content: 'Desculpe, houve um erro ao processar sua mensagem. Tente novamente.',
+        content: `Não consegui responder agora. ${detail}`,
         timestamp: Date.now(),
       };
       const finalMessages = [...updatedMessages, errorMessage];
@@ -254,54 +220,30 @@ export default function ChatScreen() {
   };
 
   const clearHistory = async () => {
-    try {
-      await AsyncStorage.removeItem(CHAT_STORAGE_KEY);
-      setMessages([]);
-    } catch (error) {
-      console.error('Error clearing chat history:', error);
-    }
+    await AsyncStorage.removeItem(CHAT_STORAGE_KEY);
+    setMessages([]);
   };
 
   const renderMessage = ({ item }: { item: Message }) => (
-    <View
-      style={[
-        styles.messageContainer,
-        item.role === 'user' ? styles.userMessageContainer : styles.assistantMessageContainer,
-      ]}
-    >
-      <View
-        style={[
-          styles.messageBubble,
-          item.role === 'user' ? styles.userBubble : styles.assistantBubble,
-        ]}
-      >
-        <Text
-          style={[
-            styles.messageText,
-            item.role === 'user' ? styles.userText : styles.assistantText,
-          ]}
-        >
-          {item.content}
-        </Text>
+    <View style={[styles.messageContainer, item.role === 'user' ? styles.userMessageContainer : styles.assistantMessageContainer]}>
+      <View style={[styles.messageBubble, item.role === 'user' ? styles.userBubble : styles.assistantBubble]}>
+        <Text style={[styles.messageText, item.role === 'user' ? styles.userText : styles.assistantText]}>{item.content}</Text>
       </View>
     </View>
   );
 
   return (
     <SafeAreaView style={styles.container}>
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        style={styles.keyboardAvoidingView}
-      >
-        {/* Header */}
+      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.keyboardAvoidingView}>
         <View style={styles.header}>
-          <Text style={styles.headerTitle}>MIAR APPS</Text>
-          <TouchableOpacity onPress={clearHistory} style={styles.clearButton}>
-            <Text style={styles.clearButtonText}>Limpar</Text>
-          </TouchableOpacity>
+          <View style={styles.logoCircle}><Text style={styles.logoText}>MM</Text></View>
+          <View style={styles.titleArea}>
+            <Text style={styles.headerTitle}>MIAR APPS</Text>
+            <Text style={styles.headerSubtitle}>MIAR MAKTUB · Facilitador de Vida</Text>
+          </View>
+          <TouchableOpacity onPress={clearHistory} style={styles.clearButton}><Text style={styles.clearButtonText}>Limpar</Text></TouchableOpacity>
         </View>
 
-        {/* Messages List */}
         <FlatList
           ref={flatListRef}
           data={messages}
@@ -310,33 +252,17 @@ export default function ChatScreen() {
           contentContainerStyle={styles.messagesList}
           ListEmptyComponent={
             <View style={styles.emptyContainer}>
-              <Text style={styles.emptyText}>Olá! Sou o MIAR APPS. Como posso ajudar?</Text>
+              <View style={styles.mascot}><Text style={styles.mascotFace}>◉‿◉</Text><Text style={styles.mascotName}>MM</Text></View>
+              <Text style={styles.emptyTitle}>MIAR MAKTUB</Text>
+              <Text style={styles.emptyText}>Mascote ativo. Memória local ativa. Chave Gemini: {GEMINI_API_KEY ? 'configurada' : 'faltando'}.</Text>
             </View>
           }
         />
 
-        {/* Input Area */}
         <View style={styles.inputContainer}>
-          <TextInput
-            style={styles.input}
-            placeholder="Digite sua mensagem..."
-            placeholderTextColor="#999"
-            value={inputText}
-            onChangeText={setInputText}
-            multiline
-            maxLength={4000}
-            editable={!loading}
-          />
-          <TouchableOpacity
-            style={[styles.sendButton, loading && styles.sendButtonDisabled]}
-            onPress={sendMessage}
-            disabled={loading || !inputText.trim()}
-          >
-            {loading ? (
-              <ActivityIndicator color="#fff" size="small" />
-            ) : (
-              <Text style={styles.sendButtonText}>Enviar</Text>
-            )}
+          <TextInput style={styles.input} placeholder="Digite sua mensagem..." placeholderTextColor="#91A7B3" value={inputText} onChangeText={setInputText} multiline maxLength={4000} editable={!loading} />
+          <TouchableOpacity style={[styles.sendButton, loading && styles.sendButtonDisabled]} onPress={sendMessage} disabled={loading || !inputText.trim()}>
+            {loading ? <ActivityIndicator color="#06131D" size="small" /> : <Text style={styles.sendButtonText}>Enviar</Text>}
           </TouchableOpacity>
         </View>
       </KeyboardAvoidingView>
@@ -345,129 +271,35 @@ export default function ChatScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#f0f8f0',
-  },
-  keyboardAvoidingView: {
-    flex: 1,
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    backgroundColor: '#90EE90',
-    borderBottomWidth: 1,
-    borderBottomColor: '#7FD87F',
-  },
-  headerTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#1a5f1a',
-  },
-  clearButton: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    backgroundColor: '#fff',
-    borderRadius: 6,
-    borderWidth: 1,
-    borderColor: '#7FD87F',
-  },
-  clearButtonText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#1a5f1a',
-  },
-  messagesList: {
-    flexGrow: 1,
-    paddingHorizontal: 12,
-    paddingVertical: 12,
-  },
-  emptyContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-  },
-  emptyText: {
-    fontSize: 16,
-    color: '#666',
-    textAlign: 'center',
-  },
-  messageContainer: {
-    marginVertical: 8,
-    flexDirection: 'row',
-  },
-  userMessageContainer: {
-    justifyContent: 'flex-end',
-  },
-  assistantMessageContainer: {
-    justifyContent: 'flex-start',
-  },
-  messageBubble: {
-    maxWidth: '80%',
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    borderRadius: 12,
-  },
-  userBubble: {
-    backgroundColor: '#90EE90',
-    borderBottomRightRadius: 4,
-  },
-  assistantBubble: {
-    backgroundColor: '#fff',
-    borderWidth: 1,
-    borderColor: '#ddd',
-    borderBottomLeftRadius: 4,
-  },
-  messageText: {
-    fontSize: 14,
-    lineHeight: 20,
-  },
-  userText: {
-    color: '#1a5f1a',
-    fontWeight: '500',
-  },
-  assistantText: {
-    color: '#333',
-  },
-  inputContainer: {
-    flexDirection: 'row',
-    paddingHorizontal: 12,
-    paddingVertical: 12,
-    backgroundColor: '#fff',
-    borderTopWidth: 1,
-    borderTopColor: '#ddd',
-    gap: 8,
-  },
-  input: {
-    flex: 1,
-    backgroundColor: '#f5f5f5',
-    borderRadius: 20,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    fontSize: 14,
-    maxHeight: 100,
-    borderWidth: 1,
-    borderColor: '#ddd',
-  },
-  sendButton: {
-    backgroundColor: '#90EE90',
-    borderRadius: 20,
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    justifyContent: 'center',
-    alignItems: 'center',
-    minWidth: 70,
-  },
-  sendButtonDisabled: {
-    opacity: 0.5,
-  },
-  sendButtonText: {
-    color: '#1a5f1a',
-    fontWeight: 'bold',
-    fontSize: 14,
-  },
+  container: { flex: 1, backgroundColor: '#06131D' },
+  keyboardAvoidingView: { flex: 1 },
+  header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, paddingVertical: 14, backgroundColor: '#06131D', borderBottomWidth: 1, borderBottomColor: '#143242', gap: 10 },
+  logoCircle: { width: 46, height: 46, borderRadius: 18, backgroundColor: '#FFFFFF', borderWidth: 2, borderColor: '#00E5FF', alignItems: 'center', justifyContent: 'center' },
+  logoText: { color: '#06131D', fontSize: 17, fontWeight: '900' },
+  titleArea: { flex: 1 },
+  headerTitle: { fontSize: 20, fontWeight: '900', color: '#FFFFFF', letterSpacing: 1 },
+  headerSubtitle: { fontSize: 11, fontWeight: '700', color: '#00E5FF', marginTop: 2 },
+  clearButton: { paddingHorizontal: 11, paddingVertical: 7, backgroundColor: '#102F40', borderRadius: 14, borderWidth: 1, borderColor: '#1D4D63' },
+  clearButtonText: { fontSize: 12, fontWeight: '700', color: '#A9B9C4' },
+  messagesList: { flexGrow: 1, paddingHorizontal: 12, paddingVertical: 14 },
+  emptyContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 24 },
+  mascot: { width: 132, height: 132, borderRadius: 45, backgroundColor: '#FFFFFF', borderWidth: 3, borderColor: '#00E5FF', alignItems: 'center', justifyContent: 'center', marginBottom: 18 },
+  mascotFace: { color: '#06131D', fontSize: 34, fontWeight: '900' },
+  mascotName: { marginTop: 8, color: '#00AFC6', fontSize: 18, fontWeight: '900' },
+  emptyTitle: { fontSize: 26, color: '#FFFFFF', fontWeight: '900', textAlign: 'center' },
+  emptyText: { fontSize: 14, color: '#A9B9C4', textAlign: 'center', lineHeight: 21, marginTop: 8 },
+  messageContainer: { marginVertical: 7, flexDirection: 'row' },
+  userMessageContainer: { justifyContent: 'flex-end' },
+  assistantMessageContainer: { justifyContent: 'flex-start' },
+  messageBubble: { maxWidth: '82%', paddingHorizontal: 13, paddingVertical: 10, borderRadius: 16 },
+  userBubble: { backgroundColor: '#00E5FF', borderBottomRightRadius: 4 },
+  assistantBubble: { backgroundColor: '#102F40', borderWidth: 1, borderColor: '#1D4D63', borderBottomLeftRadius: 4 },
+  messageText: { fontSize: 14, lineHeight: 20 },
+  userText: { color: '#06131D', fontWeight: '700' },
+  assistantText: { color: '#FFFFFF' },
+  inputContainer: { flexDirection: 'row', paddingHorizontal: 12, paddingVertical: 12, backgroundColor: '#06131D', borderTopWidth: 1, borderTopColor: '#143242', gap: 8 },
+  input: { flex: 1, backgroundColor: '#102F40', color: '#FFFFFF', borderRadius: 22, paddingHorizontal: 16, paddingVertical: 10, fontSize: 14, maxHeight: 110, borderWidth: 1, borderColor: '#1D4D63' },
+  sendButton: { backgroundColor: '#00E5FF', borderRadius: 22, paddingHorizontal: 18, paddingVertical: 10, justifyContent: 'center', alignItems: 'center', minWidth: 70 },
+  sendButtonDisabled: { opacity: 0.5 },
+  sendButtonText: { color: '#06131D', fontWeight: '900', fontSize: 14 },
 });
